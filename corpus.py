@@ -51,7 +51,7 @@ def create_data_series(Y, sample_rate, fft_size, hop_size):
     """
     index = np.arange(len(Y))
     timestamp = index * hop_size / sample_rate
-    duration = fft_size / sample_rate
+    duration = 100 * fft_size / sample_rate
     duration_array = np.array([duration] * len(Y))
     return index, timestamp, duration_array
 
@@ -183,7 +183,6 @@ def main(**kwargs):
     tv.s.grains.set_from_nddict(np_dict)
     
     granulator = SegmentedGranulator(buffer, df.timestamp, df.duration)
-    granulator.set_buffer("envelope", EnvelopeBuffer("triangle"))
     attenuated = granulator * 0.25
 
     def play():
@@ -191,6 +190,8 @@ def main(**kwargs):
     
     def stop():
         attenuated.stop()
+
+    play()
 
     @ti.func
     def ti_map_range(val, in_min, in_max, out_min, out_max):
@@ -252,15 +253,14 @@ def main(**kwargs):
             if collision:
                 granulator.trigger("trigger", gi)
                 granulator.index = gi
-                play()
-            collision_field[gi] = 0
+                collision_field[gi] = 0
     
     def _update():
-        detect_collisions(10)
+        detect_collisions(1)
         _trigger()
 
     _update()
-    updater = Updater(_update, 5000)
+    updater = Updater(_update, 10)
 
     @tv.cleanup
     def _():
