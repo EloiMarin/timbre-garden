@@ -1,4 +1,4 @@
-#N canvas 734 115 590 772 12;
+#N canvas 1199 118 590 772 12;
 #X obj 50 684 udpsend;
 #X obj 66 665 packOSC;
 #X msg 50 332 connect localhost 5001;
@@ -9,8 +9,8 @@
 #X obj 182 55 vsl 15 128 -10 10 0 0 empty empty Offset 1 -10 0 10 #fcfcfc
 #000000 #000000 0 1;
 #X floatatom 182 254 5 0 0 0 - - - 0;
-#X obj 288 93 dac~;
-#X obj 288 63 nn~ organ_bach_b2048_r48000_z16.ts decode;
+#X obj 263 93 dac~;
+#X obj 263 63 nn~ organ_bach_b2048_r48000_z16.ts decode;
 #X floatatom 68 168 5 0 0 0 - - - 0;
 #X obj 50 272 send gain;
 #X obj 182 272 send offset;
@@ -397,9 +397,8 @@
 #X connect 21 0 26 0;
 #X connect 22 0 25 0;
 #X connect 23 0 24 0;
-#X restore 288 34 pd tolvera_receive;
+#X restore 263 34 pd tolvera_receive;
 #X f 33;
-#X msg 151 519 2;
 #X obj 23 15 loadbang;
 #X msg 23 34 1;
 #X msg 155 34 0;
@@ -407,6 +406,8 @@
 0;
 #X text 52 713 Extensions required:;
 #X text 69 729 - mrpeach;
+#X msg 23 575 40;
+#X msg 151 519 2;
 #X connect 1 0 0 0;
 #X connect 2 0 0 0;
 #X connect 3 0 0 0;
@@ -422,7 +423,7 @@
 #X connect 15 0 14 0;
 #X connect 15 1 14 1;
 #X connect 16 0 18 0;
-#X connect 17 0 25 0;
+#X connect 17 0 32 0;
 #X connect 18 0 1 0;
 #X connect 19 0 23 0;
 #X connect 20 0 21 0;
@@ -445,8 +446,10 @@
 #X connect 24 13 9 13;
 #X connect 24 14 9 14;
 #X connect 24 15 9 15;
-#X connect 25 0 22 0;
-#X connect 26 0 28 0;
-#X connect 26 0 27 0;
-#X connect 27 0 4 0;
-#X connect 28 0 6 0;
+#X connect 25 0 27 0;
+#X connect 25 0 26 0;
+#X connect 25 0 31 0;
+#X connect 26 0 4 0;
+#X connect 27 0 6 0;
+#X connect 31 0 19 0;
+#X connect 32 0 22 0;
