@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """03. Corpus-based analysis and synthesis
 """
 
@@ -8,17 +10,12 @@ import sklearn.preprocessing
 
 import taichi as ti
 from tolvera import Tolvera, run
-#from tolvera.osc.update import Updater
-# from tolvera.utils import ti_map_range
-from functools import reduce
-from operator import add
-from math import floor
 from hilbertcurve.hilbertcurve import HilbertCurve
 
 def main(**kwargs):
-    tv = Tolvera(**kwargs)
+    tv = Tolvera(osc=True, **kwargs)
 
-    # Start with stopped particles
+    # Begin with stopped particles
     for i in range(tv.p.n):
         tv.p.field[i].speed = 0.0
 
@@ -31,7 +28,6 @@ def main(**kwargs):
     max_hilbert_output = 2**(n * p) - 1
 
     position_vector = ti.Vector.field(n=2, dtype=ti.i32, shape=(rave_input_dimensions))
-    particle_speeds = ti.Vector.field(n=2, dtype=ti.f32, shape=(tv.p.n))
     mean_speed = ti.field(ti.f32, shape=())
     blow_particles = ti.field(ti.f32, shape=())
     friction_coeff = ti.field(ti.f32, shape=())
@@ -66,8 +62,6 @@ def main(**kwargs):
             friction_coeff[None] = args
     RaveOSC()
 
-    window_shape = tv.ti.window.get_window_shape()
-
     @ti.kernel
     def update_mean_speed(p_field: ti.template()):
         a = 0.0
@@ -76,10 +70,7 @@ def main(**kwargs):
         a /= tv.p.n
         mean_speed[None] = a
 
-    @ti.kernel
-    def update_particle_speeds(p_field: ti.template()):
-        for i in range(tv.p.n):
-            particle_speeds[i] = p_field[i].vel * p_field[i].speed
+    window_shape = tv.ti.window.get_window_shape()
 
     @ti.kernel
     def update_position_vector(p_field: ti.template()):
@@ -130,37 +121,11 @@ def main(**kwargs):
         tv.px.diffuse(0.99)
 
         tv.v.flock(tv.p)
-
         friction(tv.p)
         
-        # Attract particles to a position with a mass and radius
-        #tv.v.attract(tv.p, [tv.x/2, tv.y/2], 10.0, tv.y)
-
-        # Attract particle species to a position with a mass and radius
-        #tv.v.attract_species(tv.p, [tv.x/2, tv.y/2], 10.0, tv.y, 1)
-
-        # Repel particles from a position with a mass and radius
-        # tv.v.repel(tv.p, [tv.x/2, tv.y/2], 10.0, tv.y)
-
-        # Repel particle species from a position with a mass and radius
-        #tv.v.repel_species(tv.p, [tv.x/2, tv.y/2], 10.0, tv.y, 1)
-
-        # Gravitate particles to a position with force G and radius
-        # tv.v.gravitate(tv.p, 10.0, 100.0)
-
-        # Gravitate particle species to a position with force G and radius
-        # tv.v.gravitate_species(tv.p, 10.0, 100.0, 0)
-
-        # Add noise to the particles with a weight (scalar)
-        # tv.v.noise(tv.p, 1.0)
-
-        # ti_funcs()
-
         tv.px.particles(tv.p, tv.s.species())
-        #draw_particle_dists(tv.p.field, tv.s.species(), tv.s.flock_p(), tv.s.flock_dist(), tv.s.flock_s(), tv.v.flock.CONSTS.MAX_RADIUS)
 
         update_position_vector(tv.p.field)
-        update_particle_speeds(tv.p.field)
         update_mean_speed(tv.p.field)
 
         return tv.px
