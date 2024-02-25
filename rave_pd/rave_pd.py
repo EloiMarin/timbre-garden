@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
-"""03. Corpus-based analysis and synthesis
-"""
-
 import numpy as np
-import sklearn.cluster
-import sklearn.decomposition
-import sklearn.preprocessing
+#import sklearn.cluster
+#import sklearn.decomposition
+#import sklearn.preprocessing
 
 import taichi as ti
 from tolvera import Tolvera, run
