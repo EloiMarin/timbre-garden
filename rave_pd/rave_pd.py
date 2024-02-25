@@ -78,28 +78,6 @@ def main(**kwargs):
             position_vector[i].xy = ti.math.clamp(position_vector[i], 0, max_hilbert_input) # window_shape might not be updated, so make sure we stay within limits
 
     @ti.kernel
-    def draw_particle_dists(p: ti.template(), s: ti.template(), f: ti.template(), fd: ti.template(), fs: ti.template(), max_radius: ti.f32):
-        for i, j in ti.ndrange(tv.p.n,tv.p.n):
-            if i==j: continue
-            p1 = p[i]
-            p2 = p[j]
-            if p1.species != p2.species: continue
-            sp = s[p1.species]
-            alpha = ((p1.vel + p2.vel)/2).norm()
-            p1x = ti.cast(p1.pos[0], ti.i32)
-            p1y = ti.cast(p1.pos[1], ti.i32)
-            p2x = ti.cast(p2.pos[0], ti.i32)
-            p2y = ti.cast(p2.pos[1], ti.i32)
-            tv.px.circle(p1x, p1y, 2 * alpha, sp.rgba)
-            d = fd[i,j].dist
-            r = fs[p1.species,p2.species].radius
-            if d > r * max_radius: continue
-            # hack, should draw two lines when wrapping occurs
-            if ti.abs(p1x - p2x) > tv.x-fs[i,j].radius: continue
-            if ti.abs(p1y - p2y) > tv.y-fs[i,j].radius: continue
-            tv.px.line(p1x, p1y, p2x, p2y, sp.rgba)
-
-    @ti.kernel
     def friction(particles: ti.template()):
         for i in range(tv.p.n):
             if particles.field[i].active == 0:
