@@ -10,9 +10,11 @@ import sklearn.preprocessing
 
 import taichi as ti
 from tolvera import Tolvera, run
-from tolvera.osc.update import Updater
+#from tolvera.osc.update import Updater
 # from tolvera.utils import ti_map_range
-from signalflow import *
+from functools import reduce
+from operator import add
+from math import floor
 
 from threading import Timer
 
@@ -93,7 +95,8 @@ def load_audio(filename):
     """
     Load an audio file from disk and return a buffer
     """
-    return Buffer(filename)
+    pass
+    #return Buffer(filename)
 
 def analyse_audio(buffer, fft_size=16384, n_mfcc=20, n_components=2):
     """
@@ -121,20 +124,6 @@ def load_features_df(filename="features.csv"):
     print("Loading features from %s" % filename)
     return pd.read_csv(filename)
 
-class Sine(Patch):
-    def __init__(self, freq=880, gain=1.0, pan=0.0):
-        super().__init__()
-        freq = self.add_input("freq", freq)
-        gain = self.add_input("gain", gain)
-        pan = self.add_input("pan", pan)
-        sine = SineOscillator(freq)
-        panner = StereoPanner(sine, pan)
-        output = panner * gain
-        self.set_output(output)
-        self.set_auto_free(True)
-    def __setattr__(self, name, value):
-        self.set_input(name, value)
-
 def df_to_np_dict(df):
     dict_of_lists = df.to_dict(orient='list')
     dict_of_arrays = {key: np.array(value).astype(np.float32) for key, value in dict_of_lists.items()}
@@ -152,15 +141,14 @@ def prepare_attraction_points(df):
 
 def main(**kwargs):
     tv = Tolvera(**kwargs)
-    graph = AudioGraph()
-    
+
     audio_file = kwargs.get("audio_file", "qmul-workshop/audio/sunkilmoon-truckers-atlas-loop.wav")
     analyse = kwargs.get("analyse", False)
     load = kwargs.get("load", False)
     
     df = None
-    buffer = load_audio(audio_file)
     if analyse:
+        buffer = load_audio(audio_file)
         df = analyse_audio(buffer)
         save_features_df(df)
     elif load:
@@ -181,17 +169,6 @@ def main(**kwargs):
         'shape': (len(df)),
     }
     tv.s.grains.set_from_nddict(np_dict)
-    
-    granulator = SegmentedGranulator(buffer, df.timestamp, df.duration)
-    attenuated = granulator * 0.25
-
-    def play():
-        attenuated.play()
-    
-    def stop():
-        attenuated.stop()
-
-    play()
 
     @ti.func
     def ti_map_range(val, in_min, in_max, out_min, out_max):
@@ -231,40 +208,42 @@ def main(**kwargs):
             dist = p.pos - g
             if dist.norm() < radius:
                 tv.v._attract(tv.p, g, 1, tv.x)
-                
-    collision_field = ti.field(ti.i32, shape=tv.s.grains.shape[0])
-    collision_field.fill(0)
 
-    @ti.kernel
-    def detect_collisions(radius: ti.f32):
-        for gi, pi in ti.ndrange(tv.s.grains.shape[0], tv.p.field.shape[0]):
-            g = ti.Vector(grain_pos_f32(gi))
-            p = tv.p.field[pi]
-            if p.active == 0:
-                continue
-            dist = p.pos - g
-            if dist.norm() < radius:
-                collision_field[gi] = 1
-    
-    def _trigger():
-        nonlocal collision_field, granulator
-        np_collision_field = collision_field.to_numpy()
-        for gi, collision in enumerate(np_collision_field):
-            if collision:
-                granulator.trigger("trigger", gi)
-                granulator.index = gi
+    def RaveOSC():
+        collision_field = ti.field(ti.i32, shape=tv.s.grains.shape[0])
+        collision_field.fill(0)
+
+        @ti.kernel
+        def detect_collisions(radius: ti.f32):
+            for gi, pi in ti.ndrange(tv.s.grains.shape[0], tv.p.field.shape[0]):
                 collision_field[gi] = 0
-    
-    def _update():
-        detect_collisions(1)
-        _trigger()
+                g = ti.Vector(grain_pos_f32(gi))
+                p = tv.p.field[pi]
+                if p.active == 0:
+                    continue
+                dist = p.pos - g
+                if dist.norm() < radius:
+                    collision_field[gi] = 1
 
-    _update()
-    updater = Updater(_update, 10)
+        @tv.osc.map.send_list(vector=(0.,0.,100.), count=1, length=16, send_mode="broadcast")
+        def rave_dimensions() -> list[float]:
+            detect_collisions(10)
+            np_collision_field = collision_field.to_numpy()
 
-    @tv.cleanup
-    def _():
-        stop()
+            message = []
+            dimension_size = floor(len(np_collision_field) / 16)
+            for dim in range(0, 16):
+                base = dim * dimension_size
+                message.append(reduce(add, np_collision_field[base:base + dimension_size]))
+
+            return map(float, message)
+
+        @tv.osc.map.receive_args(arg=(0,1,1), count=1)
+        def tolvera_reset(args):
+            if (args != 0):
+                tv.randomise()
+
+    RaveOSC()
 
     @tv.render
     def _():
@@ -273,7 +252,6 @@ def main(**kwargs):
         draw_grains()
         attract_grains(10)
         tv.px.particles(tv.p, tv.s.species())
-        updater()
         return tv.px
 
 if __name__ == '__main__':
